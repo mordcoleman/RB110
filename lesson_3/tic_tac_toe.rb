@@ -1,9 +1,12 @@
+require 'pry'
 WINNING_LINES = [[1, 2, 3], [4, 5, 6], [7, 8, 9]] +
                 [[1, 4, 7], [2, 5, 8], [3, 6, 9]] +
                 [[1, 5, 9], [3, 5, 7]]
 INTIAL_MARKER = ' '
 PLAYER_MARKER = 'X'
 COMPUTER_MARKER = 'O'
+ROUNDS_TO_WIN = 5
+CENTRE_SQUARE = 5
 def prompt(msg)
   puts "=> #{msg}"
 end
@@ -61,7 +64,8 @@ def player_places_piece!(brd)
   prompt "Choose a square to place a piece: #{joinor(empty_squares(brd))}"
   square = ''
   loop do
-    square = gets.chomp.to_i
+    answer = gets.chomp
+    square = answer.to_i if answer.include?('.') == false
     break if empty_squares(brd).include?(square)
     prompt "Sorry, that's not a valid choice."
   end
@@ -72,7 +76,7 @@ end
 def computer_places_piece!(brd)
   square = nil
   WINNING_LINES.each do |line|
-    square = computer_ai(line, brd)
+    square = computer_strategy(line, brd)
     break if square
   end
 
@@ -108,14 +112,10 @@ def place_piece!(board, current_player)
 end
 
 def alternate_player(current_player)
-  if current_player == "p"
-    "c"
-  elsif current_player == "c"
-    "p"
-  end
+  current_player == "p" ? "c" : "p"
 end
 
-def computer_ai(line, brd)
+def computer_strategy(line, brd)
   if brd.values_at(*line).count(COMPUTER_MARKER) == 2
     brd.select do |key, val|
       line.include?(key) && val == INTIAL_MARKER
@@ -124,14 +124,14 @@ def computer_ai(line, brd)
     brd.select do |key, val|
       line.include?(key) && val == INTIAL_MARKER
     end.keys.first
-  elsif brd[5] == INTIAL_MARKER
-    5
+  elsif brd[CENTRE_SQUARE] == INTIAL_MARKER
+    CENTRE_SQUARE
   end
 end
 
-def display_score(player_score, computer_score)
-  p "Player Score = #{player_score}"
-  p "Computer Score = #{computer_score}"
+def display_score(score)
+  p "Player Score = #{score[0]}"
+  p "Computer Score = #{score[1]}"
 end
 
 def board_full?(brd)
@@ -161,19 +161,36 @@ def display_results(board)
   end
 end
 
+def play_again
+  loop do
+    prompt "Do you want to play again? (y or n)"
+    answer = gets.chomp
+    if answer.start_with?("Y", "y")
+      return "yes"
+    elsif answer.start_with?("N", "n")
+      return "no"
+    else
+      prompt "Sorry, invalid response."
+    end
+  end
+end
+
+def score_tracker(winner, score)
+  winner == "Player" ? score[0] += 1 : score[1] += 1
+end
 # Game Logic
 loop do
-  player_score = 0
-  computer_score = 0
+  score = [0, 0]
   system 'clear'
   welcome_message
   loop do
     board = initialize_board
     display_board(board)
     current_player = whos_on_first
+    system 'clear'
     loop do
       display_board(board)
-      display_score(player_score, computer_score)
+      display_score(score)
       place_piece!(board, current_player)
       system 'clear'
       current_player = alternate_player(current_player)
@@ -181,17 +198,15 @@ loop do
     end
 
     display_results(board)
-
-    if detect_winner(board) == "Player"
-      player_score += 1
-    elsif detect_winner(board) == "Computer"
-      computer_score += 1
+    winner = detect_winner(board)
+    score_tracker(winner, score)
+    display_score(score)
+    final(winner, score)
+    if score.include?(ROUNDS_TO_WIN)
+      prompt "Game Over. #{winner} wins!"
+      break
     end
-    display_score(player_score, computer_score)
-    break if computer_score == 5 || player_score == 5
   end
-  prompt "Do you want to play again? (y or n)"
-  answer = gets.chomp
-  break unless answer.downcase.start_with?('y')
+  break if play_again == "no"
 end
 prompt "Thanks for playing Tic Tac Toe! Good bye!"
